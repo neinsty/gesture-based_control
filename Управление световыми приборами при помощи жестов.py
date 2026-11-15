@@ -1,15 +1,15 @@
 import cv2
 import mediapipe as mp
-from stupidArtnet import StupidArtnet  # <-- добавили
+from stupidArtnet import StupidArtnet  
 
-# ----- Настройки камеры / жестов -----
+#  Настройки камеры / жестов 
 CAM_ID = 0  # индекс веб-камеры
 MIN_DETECTION_CONFIDENCE = 0.5
 MIN_TRACKING_CONFIDENCE = 0.5
 
-# ----- Настройки DMX / Art-Net -----
-TARGET_IP = "2.129.134.206"  # IP DiaLight AC Gate-8 (сейчас broadcast)
-UNIVERSE = 0                   # попробуешь 0 или 1, смотря что у Gate-8
+#  Настройки DMX / Art-Net 
+TARGET_IP = "2.129.134.206"  # IP-адрес ArtNet, PowerShall -> ipconfig -> подключенные ethernet
+UNIVERSE = 0                   # устанавливаем на приборе, по умолчанию 0
 PACKET_SIZE = 512
 
 # голова 1, адрес 001 → каналы 1–13 → индексы 0–12
@@ -29,7 +29,7 @@ WHITE_CH   = HEAD_BASE + 7 # CH8 – W
 PAN_SENS  = 0.25  # 0.25 значит: level_x ~ ±500 → pan ~ 0..255
 TILT_SENS = 0.25
 
-# ----- Инициализация MediaPipe -----
+# Инициализация MediaPipe 
 mp_hands = mp.solutions.hands
 mp_drawing = mp.solutions.drawing_utils
 
@@ -100,13 +100,13 @@ def main():
     # Флаг: сейчас жест активен (два пальца вместе)
     gesture_active = False
 
-    # ----- Инициализируем камеру -----
+    #  Инициализируем камеру 
     cap = cv2.VideoCapture(CAM_ID)
     if not cap.isOpened():
         print("Не удалось открыть камеру. Проверьте индекс камеры и подключение.")
         return
 
-    # ----- Инициализируем Art-Net / DMX -----
+    #  Инициализируем Art-Net / DMX 
     artnet = StupidArtnet(TARGET_IP, UNIVERSE, PACKET_SIZE)
     dmx = bytearray(PACKET_SIZE)
 
@@ -153,13 +153,13 @@ def main():
 
                     landmark = hand_landmarks.landmark
 
-                    # --- определяем условие ЖЕСТА ---
+                    #  определяем условие ЖЕСТА 
                     is_right = (label == "Right")
                     pinch_cond = (
                         is_right
                         and landmark[6].y > landmark[8].y
                         and landmark[10].y > landmark[12].y
-                        and distance(8, 12, hand_landmarks) < 0.005
+                        and distance(8, 12, hand_landmarks) < 0.005  # значение дистанции лучше установить экспериментально, так как оно зависит от расстояния до камеры
                         and counts['Right'][0] == 2
                     )
 
