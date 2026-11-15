@@ -1,15 +1,15 @@
 import cv2
 import mediapipe as mp
-from stupidArtnet import StupidArtnet  # <-- добавили
+from stupidArtnet import StupidArtnet  
 
-# ----- Настройки камеры / жестов -----
+# Настройки камеры / жестов
 CAM_ID = 0  # индекс веб-камеры
 MIN_DETECTION_CONFIDENCE = 0.5
 MIN_TRACKING_CONFIDENCE = 0.5
 
-# ----- Настройки DMX / Art-Net -----
-TARGET_IP = "2.129.134.206"  # IP DiaLight AC Gate-8 (сейчас broadcast)
-UNIVERSE = 0                   # попробуешь 0 или 1, смотря что у Gate-8
+# Настройки DMX / Art-Net
+TARGET_IP = "2.129.134.206"  # IP-адрес ArtNet, смотреть в PowerShall -> ipconfig -> подключенные ethernet
+UNIVERSE = 0                   # указываем то, что в приборе. по умолчанию 0
 PACKET_SIZE = 512
 
 # голова 1, адрес 001 → каналы 1–13 → индексы 0–12
@@ -29,7 +29,7 @@ WHITE_CH   = HEAD_BASE + 7 # CH8 – W
 PAN_SENS  = 0.25  # 0.25 значит: level_x ~ ±500 → pan ~ 0..255
 TILT_SENS = 0.25
 
-# ----- Инициализация MediaPipe -----
+#Инициализация MediaPipe
 mp_hands = mp.solutions.hands
 mp_drawing = mp.solutions.drawing_utils
 
@@ -74,7 +74,7 @@ def fingers_up(hand_landmarks, handedness_label):
 
     return sum(fingers), fingers
 
-
+# Считаем расстояние между кончиками управляющих пальцев
 def distance(finger1, finger2, hand_landmarks):
     landmark = hand_landmarks.landmark
     dx = landmark[finger1].x - landmark[finger2].x
@@ -100,50 +100,23 @@ def main():
     # Флаг: сейчас жест активен (два пальца вместе)
     gesture_active = False
 
-    # ----- Инициализируем камеру -----
+    # Инициализируем камеру 
     cap = cv2.VideoCapture(CAM_ID)
     if not cap.isOpened():
         print("Не удалось открыть камеру. Проверьте индекс камеры и подключение.")
         return
 
-    # ----- Инициализируем Art-Net / DMX -----
+    #  Инициализируем Art-Net / DMX 
     artnet = StupidArtnet(TARGET_IP, UNIVERSE, PACKET_SIZE)
     dmx = bytearray(PACKET_SIZE)
 
     # базовое состояние головы: скорость, диммер, шторка, белый цвет
     dmx[SPEED_CH]   = 20   # CH5: 010–255 fast→slow, 200 = достаточно плавно
     dmx[DIMMER_CH]  = 200  # CH6: 100 % яркость
-    #dmx[SHUTTER_CH] = 0   # CH7: 250–255 = постоянно открыта (без строба)
     dmx[RED_CH]     = 0
     #dmx[GREEN_CH]   = 0
     dmx[BLUE_CH]    = 255
-    dmx[WHITE_CH]   = 0  # белый
-
-    dmx[11+17] = 0
-    dmx[9+17] = 128
-    dmx[8+17] = 0
-    dmx[4+17] = 0
-    dmx[5+17] = 0
-    dmx[6+17] = 0
-    dmx[7+17] = 255
-
-    dmx[11+34] = 0
-    dmx[9+34] = 200
-    dmx[8+34] = 0
-    dmx[4+34] = 0
-    dmx[5+34] = 0
-    dmx[6+34] = 255
-    dmx[7+34] = 0
-
-    dmx[SPEED_CH+51] = 20  # CH5: 010–255 fast→slow, 200 = достаточно плавно
-    dmx[DIMMER_CH+51] = 128  # CH6: 100 % яркость
-    # dmx[SHUTTER_CH] = 0   # CH7: 250–255 = постоянно открыта (без строба)
-    dmx[RED_CH+51] = 255
-    # dmx[GREEN_CH]   = 0
-    dmx[BLUE_CH+51] = 0
-    dmx[WHITE_CH+51] = 0  # белый
-
-    head = 0
+    dmx[WHITE_CH]   = 0  
 
     print("Старт. Жест правой рукой (2 пальца вместе) управляет PAN (x) и TILT (y).")
 
@@ -171,7 +144,7 @@ def main():
 
             if results.multi_hand_landmarks and results.multi_handedness:
                 for hand_landmarks, handedness in zip(results.multi_hand_landmarks, results.multi_handedness):
-                    label = handedness.classification[0].label  # "Left" или "Right"
+                    label = handedness.classification[0].label                                                # "Left" или "Right"
                     score = handedness.classification[0].score
 
                     count, fingers_list = fingers_up(hand_landmarks, label)
@@ -180,12 +153,12 @@ def main():
                     landmark = hand_landmarks.landmark
 
                     if label == "Right":
-                        if landmark[6].y > landmark[8].y and landmark[10].y > landmark[12].y and distance(8, 12, hand_landmarks) < 0.005 and counts['Right'][0] == 2:
+                        if landmark[6].y > landmark[8].y and landmark[10].y > landmark[12].y and distance(8, 12, hand_landmarks) < 0.005 and counts['Right'][0] == 2: # установить дистанцию в зависимости от расстояния человека до камеры
                             pinch_cond = True
                         else:
                             pinch_cond = False
 
-                    # --- определяем условие ЖЕСТА ---
+                    #  определяем условие ЖЕСТА 
 
                     if label == "Left":
                         head = (counts['Left'][0] - 1)*17
@@ -222,25 +195,6 @@ def main():
                             dmx[PAN_CH+head] = pan
                             dmx[TILT_CH+head] = tilt
 
-                        if head == 68:
-                            dmx[PAN_CH] = pan
-                            dmx[TILT_CH] = tilt
-
-                            dmx[17] = pan
-                            dmx[19] = tilt
-
-                            dmx[34] = pan
-                            dmx[36] = tilt
-
-                            dmx[PAN_CH+51] = pan
-                            dmx[TILT_CH+51] = tilt
-
-
-                        #dmx[PAN_CH+17] = pan
-                        #dmx[TILT_CH+17] = tilt
-
-                        #dmx[PAN_CH+34] = pan
-                        #dmx[TILT_CH+34] = tilt
                         # сохраняем последнюю позицию как текущее положение головы
                         pan_var = pan
                         tilt_var = tilt
